@@ -148,6 +148,22 @@ void stop_scope_timer__(struct AmlIPCScopeTimer** timer);
 #define AML_ASYNC_END_TRACECATD(cat, c, n, id, fmt, ...) \
     AML_TRACE_EVENT_CAT(c, n, 'f', id, cat, 3, fmt, ##__VA_ARGS__)
 
+__attribute__((format(printf, 7, 8))) void aml_ipc_log_msg(struct AmlIPCLogCat* cat, int t, int level, const char* file, const char* function, int lineno, const char* fmt, ...);
+
+/**
+* @brief  set log level from a string
+*
+* @Param str, ',' seperate categories and levels
+* cat1:level1,cat2:level2...
+*/
+void aml_ipc_log_set_from_string(const char* str);
+void aml_ipc_trace_set_from_string(const char* str);
+
+void aml_ipc_log_set_output_file(FILE* fp);
+
+void aml_ipc_trace_set_json_output(FILE* fp);
+__attribute__((format(printf, 7, 8))) void aml_ipc_trace_log(struct AmlIPCLogCat* cat, int level, const char* evcat, const char* evname, int evph, void* evid, const char* fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif
