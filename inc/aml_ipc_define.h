@@ -194,6 +194,79 @@ struct AmlIPCVideoFrame {
 AML_OBJ_DECLARE_TYPEID(AmlIPCVideoFrame, AmlIPCFrame, AmlObjectClass);
 #define AML_IPC_VIDEO_FRAME(obj) ((strcut AmlIPCVideoFrame*)(obj))
 
+// the buffer is "given" to callee, callee will release it when done, calller shall not touch it
+static inline AmlStatus aml_ipc_video_frame_init(struct AmlIPCVideoFrame* frame, struct AmlIPCVideoFormat* format, struct AmlIPCVideoBuffer* buf, int pitch)
+{
+    frame->format = *format;
+    frame->dmabuf = buf;
+    frame->pitch = pitch;
+    if (buf)
+        AML_IPC_FRAME(frame)->size = buf->size;
+    AML_LOGCATVV(comm, "fmt:%d %dx%d pitch:%d", format->pixfmt, format->width, format->height, pitch);
+    return AML_STATUS_OK;
+}
+
+static inline AmlStatus aml_ipc_video_frame_set_buffer(struct AmlIPCVideoFrame* frame, struct AmlIPCVideoBuffer* buf)
+{
+    if (frame->dmabuf) {
+        aml_obj_release(AML_OBJECT(frame->dmabuf));
+    }
+    frame->dmabuf = buf;
+    if (buf)
+        AML_IPC_FRAME(frame)->size = buf->size;
+    return AML_STATUS_OK;
+}
+
+static inline AmlStatus aml_ipc_video_frame_set_format(struct AmlIPCVideoFrame* frame, struct AmlIPCVideoFormat* format)
+{
+    frame->format = *format;
+    return AML_STATUS_OK;
+}
+
+enum AmlIPCAudioCodec {
+    AML_ACODEC_PCM_S16LE,
+    AML_ACODEC_PCM_S16BE,
+    AML_ACODEC_PCM_U16LE,
+    AML_ACODEC_PCM_U16BE,
+    AML_ACODEC_PCM_ULAW,
+    AML_ACODEC_PCM_ALAW,
+    AML_ACODEC_ADPCM_G726,
+    AML_ACODEC_AAC,
+
+    AML_ACODEC_SDK_MAX
+};
+
+struct AmlIPCAudioFormat {
+    enum AmlIPCAudioCodec codec;
+    int sample_rate;
+    int sample_width;
+    int num_channel;
+};
+
+struct AmlIPCAudioFrame {
+    AML_OBJ_EXTENDS(AmlIPCAudioFrame, AmlIPCFrame, AmlObjectClass);
+    struct AmlIPCAudioFormat format;
+};
+AML_OBJ_DECLARE_TYPEID(AmlIPCAudioFrame, AmlIPCFrame, AmlObjectClass);
+#define AML_IPC_AUDIO_FRAME(obj) ((struct AmlIPCAudioFrame*)(obj))
+
+enum AmlIPCVideoCodec {
+    AML_VCODEC_NONE,
+    AML_VCODEC_VP8,
+    AML_ACODEC_H263,
+    AML_ACODEC_H264,
+    AML_ACODEC_H265,
+    AML_ACODEC_JPEG,
+};
+
+// AmlIPCFrame for encoded bitstream
+struct AmlIPCVideoBitstream {
+    AML_OBJ_EXTENDS(AmlIPCVideoBitstream, AmlIPCFrame, AmlObjectClass);
+    enum AmlIPCVideoCodec codec;
+    int is_key_frame;
+};
+AML_OBJ_DECLARE_TYPEID(AmlIPCVideoBitstream, AmlIPCFrame, AmlObjectClass);
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus
