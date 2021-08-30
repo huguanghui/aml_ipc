@@ -77,6 +77,100 @@ typedef __ssize_t ssize_t;
 #endif
 #endif
 
+__BEGIN_NAMESPACE_STD
+#ifndef __USE_FILE_OFFSET64
+typedef _G_fpos_t fpos_t;
+#else
+typedef _G_fpos64_t fpos_t;
+#endif
+__END_NAMESPACE_STD
+
+#ifdef __USE_LARGEFILE64
+typedef _G_fpos64_t fpos64_t;
+#endif // __USE_LARGEFILE64
+
+#define _IOFBF 0
+#define _IOLBF 1
+#define _IONBF 2
+
+#ifndef BUFSIZ
+#define BUFSIZ _IO_BUFSIZ
+#endif // !BUFSIZ
+
+#ifndef EOF
+#define EOF (-1)
+#endif // !EOF
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#ifdef __USE_GNU
+#define SEEK_DATA 3
+#define SEEK_HOLE 4
+#endif // __USE_GNU
+
+#if defined __USE_MISC || defined __USE_XOPEN
+#define P_tmpdir "/tmp"
+#endif
+
+#include <bits/stdio_lim.h>
+
+extern struct _IO_FILE* stdin;
+extern struct _IO_FILE* stdout;
+extern struct _IO_FILE* stderr;
+
+#define stdin stdin
+#define stdout stdout
+#define stderr stderr
+
+__BEGIN_NAMESPACE_STD
+extern int remove(const char* __filename) __THROW;
+extern int rename(const char* __old, const char* __new) __THROW;
+__END_NAMESPACE_STD
+
+#ifdef __USE_ATFILE
+extern int renameat(int __oldfd, const char* __old, int __newfd, const char* __new) __THROW;
+#endif // __USE_ATFILE
+
+__BEGIN_NAMESPACE_STD
+#ifndef __USE_FILE_OFFSET64
+extern FILE* tmpfile(void) __wur;
+#else
+#ifdef __REDIRECT
+extern FILE* __REDIRECT(tmpfile, (void), tmpfile64) __wur;
+#else
+#define tmpfile tmpfile64
+#endif
+#endif // !__USE_FILE_OFFSET64
+
+#ifdef __USE_LARGEFILE64
+extern FILE* tmpfile64(void) __wur;
+#endif // __USE_LARGEFILE64
+
+extern char* tmpnam(char* __s) __THROW __wur;
+__END_NAMESPACE_STD
+
+#ifdef __USE_MISC
+extern char* tmpnam_r(char* __s) __THROW __wur;
+#endif // __USE_MISC
+
+#if defined __USE_MISC || defined __USE_XOPEN
+extern char* tempnam(const char* __dir, const char* __pfx) __THROW __attribute_malloc__ __wur;
+#endif
+
+__BEGIN_NAMESPACE_STD
+extern int fclose(FILE* __stream);
+extern int fflush(FILE* __stream);
+__END_NAMESPACE_STD
+
+#ifdef __USE_MISC
+extern int fflush_unlocked(FILE* __stream);
+#endif
+
+#ifdef __USE_GNU
+extern int fcloseall(void);
+#endif
+
 __END_DECLS
 
 #endif
