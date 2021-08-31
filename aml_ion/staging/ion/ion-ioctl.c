@@ -10,6 +10,20 @@ union ion_ioctl_arg {
     struct ion_heap_query query;
 };
 
+static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg* arg)
+{
+    switch (cmd) {
+    case ION_IOC_HEAP_QUERY:
+        if (arg->query.reserved0 || arg->query.reserved1 || arg->query.reserved2) {
+            return -EINVAL;
+        }
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
+
 static unsigned int ion_ioctl_dir(unsigned int cmd)
 {
     switch (cmd) {
@@ -40,6 +54,30 @@ long ion_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     }
     if (0 == (dir & _IOC_WRITE)) {
         memset(&data, 0, sizeof(data));
+    }
+
+    switch (cmd) {
+    case ION_IOC_ALLOC: {
+        int fd;
+        fd = ion_alloc(data.allocation.len, data.allocation.heap_id_mask, data.allocation.flags);
+        if (fd < 0) {
+            return fd;
+        }
+        data.allocation.fd = fd;
+        break;
+    }
+    case ION_IOC_HEAP_QUERY: {
+        ret = ion_query_heaps(&data.query);
+        break;
+    }
+    default:
+        return -ENOTTY;
+    }
+
+    if (dir & _IOC_READ) {
+        if (copy_to_user((void __user*)arg, &data, _IOC_SIZE(cmd))) {
+            return -EFAULT;
+        }
     }
 
     return ret;
