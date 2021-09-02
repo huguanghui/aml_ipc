@@ -1,6 +1,29 @@
+#include <linux/anon_inodes.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/dma-buf.h>
+#include <linux/err.h>
+#include <linux/export.h>
+#include <linux/file.h>
+#include <linux/freezer.h>
+#include <linux/fs.h>
+#include <linux/idr.h>
+#include <linux/kthread.h>
+#include <linux/list.h>
+#include <linux/memblock.h>
+#include <linux/miscdevice.h>
+#include <linux/mm.h>
+#include <linux/mm_types.h>
+#include <linux/rbtree.h>
+#include <linux/sched/task.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+
 #include "ion.h"
 
-static strcut ion_device* internal_dev;
+static struct ion_device* internal_dev;
 static int heap_id;
 
 static const struct file_operations ion_fops = {
