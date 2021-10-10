@@ -9,6 +9,13 @@ extern "C" {
 #endif
 #endif
 
+#define MAX_AUDIO_FRAME_NUM 50
+
+typedef enum {
+    BLOCK = 0,
+    NOBLOCK = 1,
+} IMPBlock;
+
 /**
  * 音频采样率定义.
  */
