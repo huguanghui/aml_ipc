@@ -2,5 +2,6 @@
 -Ijz_sdk/include
 -Iaml_ion/staing/
 -Iaml_ion/staing/ion
+-Iuvc_driver
 -I.
 -DLINUX
