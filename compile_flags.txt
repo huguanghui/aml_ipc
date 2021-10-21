@@ -3,5 +3,6 @@
 -Iaml_ion/staing/
 -Iaml_ion/staing/ion
 -Iuvc_driver
+-Ifh_sdk/include
 -I.
 -DLINUX
