@@ -4,5 +4,6 @@
 -Iaml_ion/staing/ion
 -Iuvc_driver
 -Ifh_sdk/include
+-Ifh_driver/pwm_motor
 -I.
 -DLINUX
