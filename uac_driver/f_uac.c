@@ -52,3 +52,74 @@ static struct usb_gadget_string* uac_strings[] = {
     &uac_string_table,
     NULL,
 };
+
+int audio_bind_config(struct usb_configuration* c)
+{
+    struct f_audio* audio;
+    int status;
+    struct usb_ep* ep;
+
+    audio = kzalloc(sizeof(*audio), GFP_KERNEL);
+    if (!audio)
+        return -ENOMEM;
+
+    audio->card.func.name = "audio";
+    audio->card.gadget = c->cdev->gadget;
+
+#ifdef CONFIG_GADGET_UAC1_PLAY
+    if (speak_enable) {
+        INIT_LIST_HEAD(&audio->play_queue);
+        audio->play_frame_list = init_node_list(AUDIO_NODE_NUM, audio_buf_size, NL_NO_BLOCK, NL_NO_BLOCK, NL_KEEPUPDATE);
+        if (audo->play_frame_list == NULL) {
+            printk("UAC:Init node list Failed\n");
+            return -ENOMEM;
+        }
+    }
+#endif
+    spin_lock_init(&audio->lock);
+    spin_lock_init(&audio->event_lock);
+
+#ifdef CONFIG_GADGET_UAC1_CAP_MIC
+    status = gaudio_setup(audio);
+    if (status < 0) {
+        return status;
+    }
+#endif /* CONFIG_GADGET_UAC1_CAP_MIC */
+    if (audio_strings_def[0].id == 0) {
+        status = usb_string_ids_tab(c->cdev, audio_strings_def);
+    }
+    if (status) {
+        printk("UAC:Allocating String ID Failed\n");
+        return status;
+    }
+    uac_iad.iFunction = audio_strings_def[0].id;
+    ac_interface_desc.iInterface = audio_strings_def[0].id;
+
+    audio->card.func.strings = uac_strings;
+    audio->card.func.bind = f_audio_bind;
+    audio->card.func.unbind = f_audio_unbind;
+    audio->card.func.set_alt = f_audio_set_alt;
+    audio->card.func.setup = f_audio_setup;
+    audio->card.func.disable = f_audio_disable;
+
+    control_selector_init(audio);
+
+#ifdef CONFIG_GADGET_UAC1_PLAY
+    if (speak_enable) {
+        INIT_WORK(&audio->playback_work, f_audio_playback_work);
+    }
+#endif /* CONFIG_GADGET_UAC1_PLAY */
+
+    status = usb_add_function(c, &audio->card.func);
+    if (status) {
+        return status;
+    }
+
+    return 0;
+}
+
+int ucam_bind_uac(struct usb_configuration* c)
+{
+    return audio_bind_config(c);
+}
+EXPORT_SYMBOL(ucam_bind_uac);
