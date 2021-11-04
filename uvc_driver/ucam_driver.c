@@ -59,7 +59,7 @@ static int ucamera_config_bind(struct usb_configuration* c)
 {
     int ret;
 
-    ret = ucamera_bind_uvc(c);
+    ret = ucam_bind_uvc(c);
     if (ret) {
         printk("ucamera bind uvc func failed\n");
     }
