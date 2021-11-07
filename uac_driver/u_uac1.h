@@ -9,6 +9,15 @@ struct audio_param {
     int speak_en;
 };
 
+struct gaudio {
+    struct usb_function func;
+    struct usb_gadget *gadget;
+
+    struct gaudio_snd_dev control;
+    struct gaudio_snd_dev playback;
+    struct gaudio_snd_dev capture;
+};
+
 struct f_audio {
     struct gaudio card;
 
