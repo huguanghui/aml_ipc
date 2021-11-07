@@ -1,6 +1,14 @@
 #ifndef __U_AUDIO_H
 #define __U_AUDIO_H
 
+struct audio_param {
+    int mic_sample_rate;
+    int spk_sample_rate;
+    short mic_volume;
+    short spk_volume;
+    int speak_en;
+};
+
 struct f_audio {
     struct gaudio card;
 
@@ -54,4 +62,3 @@ struct f_audio {
 };
 
 #endif // !__U_AUDIO_H
-#

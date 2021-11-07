@@ -57,5 +57,16 @@ static int uvc_video_enable(struct uvc_video *video, int enable)
 
 static int uvc_video_init(struct uvc_video *video)
 {
+    INIT_LIST_HEAD(&video->req_free);
+    spin_lock_init(&video->req_lock);
+
+    video->fcc = V4L2_PIX_FMT_YUYV;
+    video->bpp = 16;
+    video->width = 320;
+    video->height = 240;
+    video->imagesize = 320 * 240 * 2;
+    video->sti_trigger = 0;
+
+    uvc_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT);
     return 0;
 }

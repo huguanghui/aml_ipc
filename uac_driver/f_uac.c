@@ -123,3 +123,19 @@ int ucam_bind_uac(struct usb_configuration* c)
     return audio_bind_config(c);
 }
 EXPORT_SYMBOL(ucam_bind_uac);
+
+int uac_set_descriptor(unsigned long arg)
+{
+    int ret = 0;
+    struct audio_param* a_param = NULL;
+
+    a_param = kmalloc(sizeof(struct audio_param), GFP_KERNEL);
+    ret = copy_from_user(a_param, (void __user*)arg, sizeof(struct audio_param));
+    if (ret) {
+        printk("error(%s %d):failed to copy audio param!\n", __func__, __LINE__);
+        return -EIO;
+    }
+    uac_set_audio_param(a_param);
+    return 0;
+}
+EXPORT_SYMBOL(uac_set_descriptor);

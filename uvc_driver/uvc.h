@@ -14,4 +14,34 @@
 #define UVC_EVENT_DATA (UVC_EVENT_PRIVATE_START + 5)
 #define UVC_EVENT_LAST (UVC_EVENT_PRIVATE_START + 5)
 
+#ifdef __KERNEL__
+
+struct uvc_device {
+    struct video_device* vdev;
+    enum uvc_state state;
+    struct usb_function func;
+    struct uvc_video video;
+
+    struct {
+        const struct uvc_descriptor_header* const* fs_control;
+        const struct uvc_descriptor_header* const* ss_control;
+        const struct uvc_descriptor_header* const* fs_streaming;
+        const struct uvc_descriptor_header* const* hs_streaming;
+        const struct uvc_descriptor_header* const* ss_streaming;
+    } desc;
+
+    unsigned int control_intf;
+    struct usb_ep* control_ep;
+    struct usb_request* control_req;
+    void* control_buf;
+
+    unsigned int streaming_intf;
+
+    /* Event */
+    unsigned int event_length;
+    unsigned int event_setup_out : 1;
+};
+
+#endif
+
 #endif // !_UVC_GADGET_H_
