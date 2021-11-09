@@ -53,6 +53,206 @@ static struct usb_gadget_string* uac_strings[] = {
     NULL,
 };
 
+static int gaudio_lock(atomic_t* excl)
+{
+    if (atomic_inc_return(excl) == 1) {
+        return 0;
+    } else {
+        atomic_dec(excl);
+        return -1;
+    }
+}
+
+static void gaudio_unlock(atomic_t* excl)
+{
+    atomic_dec(excl);
+}
+
+static int gaudio_open(struct inode* ip, struct file* fp)
+{
+    if (!__audio) {
+        return -ENODEV;
+    }
+    if (gaudio_lock(&__audio->open_excl))
+        return -EBUSY;
+    fp->private_data = __audio;
+    return 0;
+}
+
+static int gaudio_release(struct inode* ip, struct file* fp)
+{
+    gaudio_unlock(&((struct f_audio*)fp->private_data)->open_excl);
+    return 0;
+}
+
+static struct file_operations f_audio_fops = {
+    .owner = THIS_MODULE,
+    .write = gaudio_write,
+    .read = gaudio_read,
+    .open = gaudio_open,
+    .release = gaudio_release,
+    .poll = gaudio_poll,
+    .unlocked_ioctl = gaudio_ioctl,
+    .mmap = gaudio_mmap,
+};
+
+static struct miscdevice gaudio_device = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "gaudio",
+    .fops = &gaudio_fops,
+};
+
+static int f_audio_bind(struct usb_configuration* c, struct usb_function* f)
+{
+    struct usb_composite_dev* cdev = c->cdev;
+    struct f_audio* audio = func_to_audio(f);
+    int status, i;
+    struct usb_ep* ep = NULL;
+
+    usb_function_deactivate(f);
+    f_audio_build_desc(audio);
+
+    status = usb_interface_id(c, f);
+    if (status < 0)
+        goto fail;
+    ac_interface_desc.bInterfaceNumber = status;
+    uac_iad.bFirstInterface = status;
+    uac_iad.bInterfaceCount = 1;
+
+#if defined(CONFIG_GADGET_UAC1_PLAY) && defined(CONFIG_GADGET_UAC1_CAP)
+    if (speak_enable) {
+        status = usb_interface_id(c, f);
+        if (status < 0)
+            goto fail;
+        spk_as_interface_alt_0_desc.bInterfaceNumber = status;
+        spk_as_interface_alt_1_desc.bInterfaceNumber = status;
+        ac_header_desc.baInterfaceNr[0] = status;
+        play_intf = status;
+        uac_iad.bInterfaceCount += 1;
+
+        status = usb_interface_id(c, f);
+        if (status < 0)
+            goto fail;
+        mic_as_interface_alt_0_desc.bInterfaceNumber = status;
+        mic_as_interface_alt_1_desc.bInterfaceNumber = status;
+        ac_header_desc.baInterfaceNr[1] = status;
+        cap_intf = status;
+        uac_iad.bInterfaceCount += 1;
+    } else {
+        status = usb_interface_id(c, f);
+        if (status < 0)
+            goto fail;
+        mic_as_interface_alt_0_desc.bInterfaceNumber = status;
+        mic_as_interface_alt_1_desc.bInterfaceNumber = status;
+        ac_header_desc.baInterfaceNr[0] = status;
+        cap_intf = status;
+        uac_iad.bInterfaceCount += 1;
+    }
+#elif defined(CONFIG_GADGET_UAC1_PLAY)
+    status = usb_interface_id(c, f);
+    if (status < 0)
+        goto fail;
+    spk_as_interface_alt_0_desc.bInterfaceNumber = status;
+    spk_as_interface_alt_1_desc.bInterfaceNumber = status;
+    ac_header_desc.baInterfaceNr[0] = status;
+    play_intf = status;
+    uac_iad.bInterfaceCount += 1;
+#elif defined(CONFIG_GADGET_UAC1_CAP)
+    status = usb_interface_id(c, f);
+    if (status < 0)
+        goto fail;
+    mic_as_interface_alt_0_desc.bInterfaceNumber = status;
+    mic_as_interface_alt_1_desc.bInterfaceNumber = status;
+    ac_header_desc.baInterfaceNr[0] = status;
+    cap_intf = status;
+    uac_iad.bInterfaceCount += 1;
+#else
+#error cap or play should be defined
+#endif
+    status = -ENODEV;
+
+#ifdef CONFIG_GADGET_UAC1_PLAY
+    if (speak_enable) {
+        ep = usb_ep_autoconfig(cdev->gadget, &as_out_ep_desc);
+        if (!ep)
+            goto fail;
+        audio->out_ep = ep;
+        audio->out_ep->desc = &as_out_ep_desc;
+        ep->driver_data = cdev;
+    }
+#endif /* CONFIG_GADGET_UAC1_PLAY */
+
+#if CONFIG_GADGET_UAC1_CAP
+    ep = usb_ep_autoconfig(cdev->gadget, &as_in_ep_desc);
+    if (!ep)
+        goto fail;
+    audio->in_ep = ep;
+    audio->in_ep->desc = &as_in_ep_desc;
+    ep->driver_data = cdev;
+#endif /* CONFIG_GADGET_UAC1_CAP */
+
+    status = -ENOMEM;
+
+    status = usb_assign_descriptors(f, f_audio_desc, f_audio_desc, NULL);
+    if (status)
+        goto fail;
+    usb_function_activate(f);
+
+    atomic_set(&audio->interface_conn, 1);
+
+    init_waitqueue_head(&audio->event_queue);
+    INIT_LIST_HEAD(&audio->event_list);
+
+    __audio = audio;
+#ifdef CONFIG_GADGET_UAC1_CAP_USER
+    init_waitqueue_head(&audio->read_wq);
+    init_waitqueue_head(&audio->write_wq);
+    init_waitqueue_head(&audio->online_wq);
+    atomic_set(&audio->open_excl, 0);
+    atomic_set(&audio->read_excl, 0);
+    atomic_set(&audio->write_excl, 0);
+    INIT_LIST_HEAD(&audio->idle_reqs);
+    INIT_LIST_HEAD(&audio->audio_data_list);
+    spin_lock_init(&audio->audio_list_lock);
+
+    status = misc_register(&audio_device);
+    if (status)
+        goto fail;
+
+    for (i = 0, status = 0; i < IN_EP_REQ_COUNT && status == 0; i++) {
+        struct usb_request* req = audio_request_new(audio->in_ep, IN_EP_MAX_PACKET_SIZE);
+        if (req) {
+            req->context = audio;
+            req->complete = audio_data_complete;
+            audio_req_put(audio, &audio->idle_reqs, req);
+        } else
+            status = -ENOMEM;
+    }
+    audio->cur_seq = NULL;
+    if (status == -ENOMEM) {
+        goto fail;
+    }
+#endif /* CONFIG_GADGET_UAC1_CAP_USER */
+
+#ifdef CONFIG_GADGET_UAC1_CAP_MIC
+    spin_lock_init(&audio->cb_list_lock);
+    audio->capture__thread = kthread_create(audio_capture_thread, audio, "usb-audio-capture");
+    if (IS_ERR(audio->capture_thread))
+        return PTR_ERR(audio->capture_thread);
+
+    INIT_LIST_HEAD(&audio->cb_list_free);
+    INIT_LIST_HEAD(&audio->cb_list_queued);
+#endif /* CONFIG_GADGET_UAC1_CAP_MIC */
+
+    return 0;
+
+fail:
+    if (ep)
+        ep->driver_data = NULL;
+
+    return status;
+}
+
 int audio_bind_config(struct usb_configuration* c)
 {
     struct f_audio* audio;

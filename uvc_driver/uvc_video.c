@@ -67,6 +67,6 @@ static int uvc_video_init(struct uvc_video *video)
     video->imagesize = 320 * 240 * 2;
     video->sti_trigger = 0;
 
-    uvc_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+    uvc_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT)
     return 0;
 }
