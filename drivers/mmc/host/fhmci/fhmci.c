@@ -164,6 +164,27 @@ static int fh_mci_probe(struct platform_device* pdev)
         goto out;
     }
 #else
+    host->pdata = pdev->dev.platform_data;
+
+    mmc->caps |= host->pdata->caps;
+    id = pdev->id;
+    drv_degree = host->pdata->drv_degree;
+    sam_degree = host->pdata->sam_degree;
+    mmc->rescan_max_num = host->pdata->rescan_max_num;
+
+    if (host->pdata->get_cd) {
+        host->get_cd = host->pdata->get_cd;
+    } else {
+        host->get_cd = fh_mci_sys_card_detect;
+    }
+
+    if (host->pdata->get_ro) {
+        host->get_ro = host->pdata->get_ro;
+    } else {
+        host->get_ro = fh_mci_ctrl_card_readonly;
+    }
+
+    regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 #endif /* CONFIG_USE_OF */
 
