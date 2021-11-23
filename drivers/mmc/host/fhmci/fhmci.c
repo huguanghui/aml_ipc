@@ -77,6 +77,26 @@ static int sd_init(struct fhmci_host* host, unsigned int drv_degree, unsigned in
     return 0;
 }
 
+static irqreturn_t hisd_irq(int irq, void* dev_id)
+{
+    struct fhmci_host* host = (struct fhmci_host*)dev_id;
+    u32 state = 0;
+    int handle = 0;
+
+    state = fhmci_readl(host->base + MCI_RINTSTS);
+
+#ifndef CONFIG_SEND_AUTO_STOP
+    if ((host->mmc->card != NULL)
+        && (host->mmc->card->type == MMC_TYPE_SDIO)) {
+#endif /* !DEBUG */
+
+#ifndef CONFIG_SEND_AUTO_STOP
+    }
+#endif /* !DEBUG */
+
+    return IRQ_NONE;
+}
+
 static int fh_mci_probe(struct platform_device* pdev)
 {
     struct mmc_host* mmc;
@@ -185,7 +205,24 @@ static int fh_mci_probe(struct platform_device* pdev)
     }
 
     regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+    if (!regs) {
+        fhmci_error("request resource error!\n");
+        ret = -ENXIO;
+        goto out;
+    }
 
+    host->base = ioremap_nocahe(regs->start, regs->end - regs->start + 1);
+    if (!host->base) {
+        fhmci_error("not mem for fhmci base!\n");
+        ret = -ENOMEM;
+        goto out;
+    }
+    irq = platform_get_irq(pdev, 0);
+    irq = irq_create_mapping(NULL, irq);
+    if (irq < 0) {
+        fhmci_error("no IRQ defined!\n");
+        goto out;
+    }
 #endif /* CONFIG_USE_OF */
 
     mmc->max_blk_count = 2048;
