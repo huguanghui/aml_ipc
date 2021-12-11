@@ -6,5 +6,6 @@
 -Ifh_sdk/include
 -Ifh_driver/pwm_motor
 -Iusb_driver
+-Ifh_uboot/include
 -I.
 -DLINUX
